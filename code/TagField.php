@@ -11,7 +11,7 @@ class TagField extends DropdownField
     /**
      * @var array
      */
-    public static $allowed_actions = array(
+    private static $allowed_actions = array(
         'suggest',
     );
 
@@ -46,7 +46,7 @@ class TagField extends DropdownField
      * @param null|DataList $source
      * @param null|DataList $value
      */
-    public function __construct($name, $title = '', $source = null, $value = null)
+    public function __construct($name, $title = '', DataList $source, DataList $value = null)
     {
         parent::__construct($name, $title, $source, $value);
     }
@@ -178,6 +178,7 @@ class TagField extends DropdownField
             ));
         }
 
+        $this->addExtraClass('no-chosen');
         return $this
             ->customise($properties)
             ->renderWith(array("templates/TagField"));
@@ -198,11 +199,7 @@ class TagField extends DropdownField
     {
         $options = ArrayList::create();
 
-        $source = $this->getSource();
-
-        if (!$source) {
-            $source = new ArrayList();
-        }
+        $source = $this->getSource() ?: new ArrayList();
 
         $dataClass = $source->dataClass();
 
@@ -374,6 +371,9 @@ class TagField extends DropdownField
          * @var DataList $source
          */
         $source = $this->getSource();
+        if(is_null($source)) {
+            return array();
+        }
 
         $titleField = $this->getTitleField();
 
@@ -406,7 +406,7 @@ class TagField extends DropdownField
     {
         return true;
     }
-    
+
     /**
      * Converts the field to a readonly variant.
      *
@@ -417,6 +417,31 @@ class TagField extends DropdownField
         $copy = $this->castedCopy('TagField_Readonly');
         $copy->setSource($this->getSource());
         return $copy;
+    }
+
+    /**
+     * Tagfield relies on $source being a DataList but there's nothing preventing other
+     * types being passed.
+     *
+     * @return DataList|null
+     */
+    public function getSource()
+    {
+        return $this->source;
+    }
+
+    /**
+     * Ensure the source is a datalist when set.
+     *
+     * @return self
+     */
+    public function setSource($source)
+    {
+        if(!($source instanceof DataList)) {
+            throw new Exception('source must be an instance of DataList in ' . __CLASS__);
+        }
+        $this->source = $source;
+        return $this;
     }
 }
 
@@ -429,7 +454,7 @@ class TagField extends DropdownField
 class TagField_Readonly extends TagField
 {
     protected $readonly = true;
-    
+
     /**
      * Render the readonly field as HTML.
      *
@@ -439,13 +464,13 @@ class TagField_Readonly extends TagField
     public function Field($properties = array())
     {
         $options = array();
-        
+
         foreach ($this->getOptions()->filter('Selected', true) as $option) {
             $options[] = $option->Title;
         }
-        
+
         $field = ReadonlyField::create($this->name.'_Readonly', $this->title);
-        
+
         $field->setForm($this->form);
         $field->setValue(implode(', ', $options));
         return $field->Field();
